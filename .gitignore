@@ -1,0 +1,4 @@
+/target
+*.swp
+# Local admin artifacts produced by the CLI
+/allowlist.json
