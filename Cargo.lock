@@ -640,6 +640,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-socket"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "hex",
+ "hmac",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sin-core",
+ "sin-middleware",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"

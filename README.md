@@ -66,6 +66,7 @@ rotating the secret invalidates every session. The token also works as an
 | `sin-cli`   | `sin` — identities, allowlist, plus `challenge` / `verify`              |
 | `sin-middleware` | axum extractors (`Authenticated`, `Session`) + `challenge` / `login` handlers |
 | `sin-demo`  | runnable server: serves the PWA *and* SIn-protected endpoints           |
+| `examples/rf-socket` | a socket controller with session auth + **role-based access** (toggle vs. admin) |
 | `web/`      | the **signer PWA**: passkey-gated key, NIP-98 signing, installable/offline |
 
 ## CLI
@@ -133,6 +134,30 @@ per-request NIP-98, while `/auth/login` mints a session that authorizes
 `SIN_SESSION_SECRET`, `SIN_SESSION_TTL`, `SIN_ALLOWLIST`, `SIN_WEB_DIR`,
 `SIN_ADDR`.
 
+## Example: an RF socket controller with roles
+
+`examples/rf-socket` is a fuller, realistic app — the shape an actual
+`rf-socket-controller` would take. It adds the one thing the demo doesn't show:
+**role-based authorization** carried in the signed session.
+
+- Combined app state (a socket bank + `SinState`) wired through `FromRef`, so
+  the SIn extractors and your handlers share one router state.
+- Any registered key may **list and toggle** sockets (`POST /api/sockets/{id}/{on,off,toggle}`).
+- Only an `admin` may **add or remove** them (`POST`/`DELETE /api/sockets`). The
+  role rides in the session, so the check is a string compare — no extra lookup.
+- Swap `actuate_radio` for your 433 MHz transmitter and it's a real controller.
+
+```sh
+SIN_BASE=http://localhost:8090 SIN_ADDR=127.0.0.1:8090 cargo run -p rf-socket
+# register keys with roles:
+cargo run -p sin-cli -- allow npub1admin... --role admin
+cargo run -p sin-cli -- allow npub1guest... --role user
+```
+
+The role split is exercised end-to-end in `examples/rf-socket/test/live.mjs`
+(both roles sign in via passkey-style keys; the user is `403`'d on add/remove
+while the admin succeeds).
+
 ## Using it from a server
 
 With `sin-middleware`, protect routes with the `Authenticated` (per-request
@@ -192,7 +217,8 @@ println!("authenticated {} as {}", session.label, session.role);
 - [x] **session issuance**: stateless HMAC session token (cookie or Bearer) after
       a successful sign-in — sign once, then act (live-tested)
 - [x] `sin-demo`: runnable server hosting the PWA + protected routes (live-tested)
-- [ ] `examples/rf-socket`: wired into rf-socket-controller
+- [x] `examples/rf-socket`: realistic controller — session auth + role-based
+      authorization (users toggle, admins reconfigure), live-tested
 
 ## Security notes
 
