@@ -45,13 +45,26 @@ The **challenge is stateless**: `nonce ‖ expiry ‖ HMAC(server_secret, …)`,
 there's no nonce database — just a small in-memory replay cache to stop a valid
 challenge being used twice.
 
+### Sign once: sessions
+
+Signing every request is right for a CLI, but a browser wants to authenticate
+once. After a successful sign-in to `POST /auth/login`, the server mints a
+**session token** and sets it as an `HttpOnly` cookie. Subsequent calls are
+authorized by that cookie alone — no further signing until it expires.
+
+The session token is stateless too, mirroring the challenge:
+`base64url(payload) ‖ HMAC(session_secret, payload)`, carrying the verified
+pubkey/role/label and an expiry. So there's **no session table either** —
+rotating the secret invalidates every session. The token also works as an
+`Authorization: Bearer <token>` header for non-browser clients.
+
 ## Crates
 
 | crate / dir | what it is                                                              |
 | ----------- | ----------------------------------------------------------------------- |
-| `sin-core`  | keypairs + `npub`/`nsec`, nostr events, challenges, allowlist, verifier |
+| `sin-core`  | keypairs + `npub`/`nsec`, nostr events, challenges, **sessions**, allowlist, verifier |
 | `sin-cli`   | `sin` — identities, allowlist, plus `challenge` / `verify`              |
-| `sin-middleware` | axum `Authenticated` extractor + `/auth/challenge` handler        |
+| `sin-middleware` | axum extractors (`Authenticated`, `Session`) + `challenge` / `login` handlers |
 | `sin-demo`  | runnable server: serves the PWA *and* SIn-protected endpoints           |
 | `web/`      | the **signer PWA**: passkey-gated key, NIP-98 signing, installable/offline |
 
@@ -114,24 +127,57 @@ cargo run -p sin-cli -- allow npub1... --label "my phone" --role admin
 ```
 
 `SIN_BASE` must equal the origin the browser uses, since NIP-98 tokens bind to
-the absolute request URL. Other env vars: `SIN_SECRET`, `SIN_ALLOWLIST`,
-`SIN_WEB_DIR`, `SIN_ADDR`.
+the absolute request URL. The demo wires up both auth styles: `/auth/whoami` is
+per-request NIP-98, while `/auth/login` mints a session that authorizes
+`/auth/me` and `/api/socket/...`. Other env vars: `SIN_SECRET`,
+`SIN_SESSION_SECRET`, `SIN_SESSION_TTL`, `SIN_ALLOWLIST`, `SIN_WEB_DIR`,
+`SIN_ADDR`.
 
 ## Using it from a server
 
+With `sin-middleware`, protect routes with the `Authenticated` (per-request
+NIP-98) or `Session` (cookie/Bearer) extractor, and mount the `challenge` and
+`login` handlers:
+
 ```rust
-use sin_core::{Allowlist, ChallengeKey, Verifier};
+use axum::{routing::{get, post}, Json, Router};
+use sin_core::{Allowlist, ChallengeKey, SessionKey, Verifier};
+use sin_middleware::{challenge, login, Authenticated, Session, SinState};
+
+let state = SinState::new(
+    Verifier::new(ChallengeKey::new(challenge_secret, 300), 60),
+    Allowlist::load("allowlist.json")?,
+    "https://sockets.local",
+)
+.with_sessions(SessionKey::new(session_secret, 86_400)); // 24h sessions
+
+let app = Router::new()
+    .route("/auth/challenge", get(challenge))             // mint a challenge
+    .route("/auth/login", post(login))                    // NIP-98 -> session cookie
+    .route("/auth/me", get(|Session(s): Session| async move {
+        Json(serde_json::json!({ "role": s.role }))       // authorized by the cookie
+    }))
+    .route("/auth/whoami", get(|Authenticated(s): Authenticated| async move {
+        Json(serde_json::json!({ "role": s.role }))       // per-request NIP-98
+    }))
+    .with_state(state);
+```
+
+Or drive `sin-core` directly, without the axum layer:
+
+```rust
+use sin_core::{Allowlist, ChallengeKey, SessionKey, Verifier};
 
 let allowlist = Allowlist::load("allowlist.json")?;
-let challenge = ChallengeKey::new(server_secret_bytes, 300); // 5-min TTL
-let verifier = Verifier::new(challenge, 60);                 // 60s clock skew
+let verifier = Verifier::new(ChallengeKey::new(server_secret_bytes, 300), 60);
+let sessions = SessionKey::new(session_secret_bytes, 86_400);
 
-// GET /auth/challenge
-let challenge_str = verifier.issue_challenge(now_unix);
-
-// On a protected route, with the request's Authorization header:
-let signin = verifier.verify(&auth_header, "POST", &request_url, &allowlist, now_unix)?;
-println!("authenticated {} as {}", signin.label, signin.role);
+let challenge_str = verifier.issue_challenge(now_unix);          // GET /auth/challenge
+let signin = verifier.verify(&auth_header, "POST", &url, &allowlist, now_unix)?;
+let token = sessions.issue(&signin.pubkey, &signin.role, &signin.label, now_unix);
+// ... later, on a session-protected route:
+let session = sessions.verify(&token, now_unix)?;
+println!("authenticated {} as {}", session.label, session.role);
 ```
 
 ## Status / roadmap
@@ -141,10 +187,12 @@ println!("authenticated {} as {}", signin.label, signin.role);
 - [x] `sin-cli`: identity + allowlist management, plus `challenge` / `verify`
 - [x] **signer PWA** (`web/`): on-device keypair, passkey-gated via WebAuthn PRF,
       NIP-98 signing, installable/offline, JS↔Rust interop-tested
-- [x] `sin-middleware`: axum `Authenticated` extractor + `/auth/challenge`
+- [x] `sin-middleware`: axum `Authenticated` + `Session` extractors, `challenge`
+      + `login` handlers
+- [x] **session issuance**: stateless HMAC session token (cookie or Bearer) after
+      a successful sign-in — sign once, then act (live-tested)
 - [x] `sin-demo`: runnable server hosting the PWA + protected routes (live-tested)
 - [ ] `examples/rf-socket`: wired into rf-socket-controller
-- [ ] session issuance (signed cookie / JWT) after a successful sign-in
 
 ## Security notes
 

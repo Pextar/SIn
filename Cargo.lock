@@ -780,8 +780,10 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "hex",
+ "hmac",
  "rand 0.8.6",
  "serde_json",
+ "sha2",
  "sin-core",
  "sin-middleware",
  "tokio",

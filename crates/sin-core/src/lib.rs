@@ -46,6 +46,7 @@ mod keys;
 mod nip98;
 mod nonce;
 mod replay;
+mod session;
 
 pub use allowlist::{Allowlist, Entry};
 pub use error::{Error, Result};
@@ -54,3 +55,4 @@ pub use keys::{Keypair, PublicKey};
 pub use nip98::{parse_header, SignIn, Verifier, CHALLENGE_TAG, KIND_HTTP_AUTH};
 pub use nonce::ChallengeKey;
 pub use replay::ReplayCache;
+pub use session::{Session, SessionKey};

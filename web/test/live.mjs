@@ -29,43 +29,92 @@ if (mode === "run") {
     if (!ok) failures++;
   };
 
-  async function authed(path, method = "GET") {
+  // Sign a NIP-98 token bound to `path`+`method` against a fresh challenge.
+  async function sign(path, method = "GET") {
     const { challenge } = await (await fetch(`${base}/auth/challenge`)).json();
-    const url = base + path;
-    const token = nip98Token(sk, { url, method, challenge });
-    return fetch(url, { method, headers: { Authorization: token } });
+    return nip98Token(sk, { url: base + path, method, challenge });
+  }
+  // One-shot NIP-98 call (the CLI style).
+  async function authed(path, method = "GET") {
+    const token = await sign(path, method);
+    return fetch(base + path, { method, headers: { Authorization: token } });
   }
 
-  // 1. Authenticated whoami returns our identity.
+  // 1. Per-request NIP-98 whoami returns our identity.
   {
     const res = await authed("/auth/whoami");
     const body = await res.json();
-    check("GET /auth/whoami authenticates", res.status === 200 && body.npub === npub(sk), `status ${res.status}`);
+    check("GET /auth/whoami authenticates (NIP-98)", res.status === 200 && body.npub === npub(sk), `status ${res.status}`);
     check("role comes back from the allowlist", body.role === "admin");
   }
 
-  // 2. Protected socket endpoint works.
+  // 2. Sign in once at /auth/login, get a session token + cookie.
+  let sessionToken, sessionCookie;
   {
-    const res = await authed("/api/socket/3/on", "POST");
+    const token = await sign("/auth/login", "POST");
+    const res = await fetch(`${base}/auth/login`, { method: "POST", headers: { Authorization: token } });
     const body = await res.json();
-    check("POST /api/socket/3/on succeeds", res.status === 200 && body.ok === true && body.action === "on");
+    sessionToken = body.token;
+    const setCookie = res.headers.get("set-cookie") || "";
+    sessionCookie = setCookie.split(";")[0]; // sin_session=<token>
+    check("POST /auth/login mints a session", res.status === 200 && !!sessionToken && body.npub === npub(sk), `status ${res.status}`);
+    check("login sets an HttpOnly session cookie", /sin_session=/.test(setCookie) && /HttpOnly/i.test(setCookie));
   }
 
-  // 3. No Authorization header => 401.
+  // 3. The session cookie alone authorizes the socket endpoint (sign once, act many).
   {
-    const res = await fetch(`${base}/auth/whoami`);
-    check("missing token is rejected", res.status === 401, `status ${res.status}`);
+    const hit = (id, action) =>
+      fetch(`${base}/api/socket/${id}/${action}`, { method: "POST", headers: { Cookie: sessionCookie } });
+    const r1 = await hit(3, "on");
+    const b1 = await r1.json();
+    const r2 = await hit(3, "off");
+    check("POST /api/socket/3/on via session cookie", r1.status === 200 && b1.ok === true && b1.action === "on", `status ${r1.status}`);
+    check("same cookie reused for a second call", r2.status === 200);
+    check("session carries our identity", b1.by === npub(sk));
   }
 
-  // 4. A token bound to a different path is rejected (request binding).
+  // 3b. The session also authorizes /auth/me (identity via cookie, no signing).
   {
-    const { challenge } = await (await fetch(`${base}/auth/challenge`)).json();
-    const token = nip98Token(sk, { url: `${base}/auth/whoami`, method: "GET", challenge });
-    const res = await fetch(`${base}/api/socket/3/on`, { method: "POST", headers: { Authorization: token } });
-    check("token bound to another path is rejected", res.status === 401, `status ${res.status}`);
+    const res = await fetch(`${base}/auth/me`, { headers: { Cookie: sessionCookie } });
+    const body = await res.json();
+    check("GET /auth/me via session cookie", res.status === 200 && body.npub === npub(sk), `status ${res.status}`);
   }
 
-  // 5. The PWA itself is served at the root.
+  // 4. The session token also works as a Bearer header (programmatic clients).
+  {
+    const res = await fetch(`${base}/api/socket/4/on`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    });
+    check("session works as a Bearer token", res.status === 200, `status ${res.status}`);
+  }
+
+  // 5. No credentials => 401 on both styles.
+  {
+    const r1 = await fetch(`${base}/auth/whoami`);
+    const r2 = await fetch(`${base}/api/socket/3/on`, { method: "POST" });
+    check("missing NIP-98 token is rejected", r1.status === 401, `status ${r1.status}`);
+    check("missing session is rejected", r2.status === 401, `status ${r2.status}`);
+  }
+
+  // 6. A NIP-98 token bound to another path is rejected (request binding).
+  {
+    const token = await sign("/auth/login", "POST"); // bound to login, not whoami
+    const res = await fetch(`${base}/auth/whoami`, { headers: { Authorization: token } });
+    check("NIP-98 token bound to another path is rejected", res.status === 401, `status ${res.status}`);
+  }
+
+  // 7. A tampered session token is rejected.
+  {
+    const tampered = sessionToken.slice(0, -3) + "AAA";
+    const res = await fetch(`${base}/api/socket/3/on`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tampered}` },
+    });
+    check("tampered session token is rejected", res.status === 401, `status ${res.status}`);
+  }
+
+  // 8. The PWA itself is served at the root.
   {
     const res = await fetch(`${base}/`);
     const html = await res.text();

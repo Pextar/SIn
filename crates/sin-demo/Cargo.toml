@@ -20,3 +20,5 @@ tower-http.workspace = true
 serde_json.workspace = true
 hex.workspace = true
 rand.workspace = true
+hmac.workspace = true
+sha2.workspace = true

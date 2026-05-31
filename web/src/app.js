@@ -88,12 +88,21 @@ async function testSignIn() {
     return;
   }
   localStorage.setItem(SERVER_KEY, server);
+  const path = $("test-path").value.trim() || "/auth/whoami";
   try {
     await withKey(async (sk) => {
       const client = new SinClient(server);
-      const res = await client.authedFetch(sk, $("test-path").value.trim() || "/auth/whoami");
+      // Sign in once to establish a session (the passkey unlock above is the
+      // only time the key is touched)…
+      const session = await client.login(sk);
+      // …then reach the protected route using just the session cookie.
+      const res = await client.sessionFetch(path);
       const text = await res.text();
-      setStatus(`HTTP ${res.status}\n${text}`, res.ok ? "ok" : "error");
+      setStatus(
+        `Signed in as ${session.role}. Then called ${path} with the session:\n` +
+          `HTTP ${res.status}\n${text}`,
+        res.ok ? "ok" : "error",
+      );
     });
   } catch (e) {
     setStatus(`Sign-in failed: ${e.message}`, "error");

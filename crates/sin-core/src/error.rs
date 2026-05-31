@@ -30,6 +30,9 @@ pub enum Error {
     #[error("invalid or expired challenge: {0}")]
     Challenge(String),
 
+    #[error("invalid or expired session: {0}")]
+    Session(String),
+
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
