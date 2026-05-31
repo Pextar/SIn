@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SIn">
+  <rect width="512" height="512" rx="112" fill="#0b0d12"/>
+  <!-- key bow -->
+  <circle cx="200" cy="200" r="92" fill="none" stroke="#f7931a" stroke-width="34"/>
+  <circle cx="200" cy="200" r="30" fill="#f7931a"/>
+  <!-- key shaft + teeth -->
+  <path d="M250 250 L390 390" fill="none" stroke="#f7931a" stroke-width="34" stroke-linecap="round"/>
+  <path d="M340 340 l46 0 M300 300 l40 40" fill="none" stroke="#3ecf8e" stroke-width="30" stroke-linecap="round"/>
+</svg>

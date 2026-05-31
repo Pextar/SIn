@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>SIn Signer</title>
+    <meta name="description" content="Passwordless, passkey-gated nostr/bitcoin-style signer." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <meta name="theme-color" content="#0b0d12" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="./icon.svg" alt="" width="48" height="48" />
+        <div>
+          <h1>SIn Signer</h1>
+          <p class="tagline">No passwords. Your key signs you in.</p>
+        </div>
+      </header>
+
+      <section id="enroll-view" hidden>
+        <h2>Set up this device</h2>
+        <p>
+          Create a signing identity. The secret key is generated here, encrypted,
+          and locked behind your device passkey — it never leaves this device.
+        </p>
+        <button id="btn-enroll" class="primary">Create identity &amp; passkey</button>
+      </section>
+
+      <section id="signer-view" hidden>
+        <p class="identity">Enrolled as <span id="identity-label">…</span></p>
+
+        <div class="row">
+          <button id="btn-show-npub">Show my npub</button>
+          <button id="btn-forget" class="danger">Forget identity</button>
+        </div>
+
+        <details>
+          <summary>Sign a token manually</summary>
+          <label>Request URL<input id="req-url" type="url" placeholder="https://sockets.local/api/socket/3/on" /></label>
+          <label>Method
+            <select id="req-method">
+              <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+            </select>
+          </label>
+          <label>Challenge<input id="req-challenge" type="text" placeholder="challenge from /auth/challenge" /></label>
+          <button id="btn-sign">Sign &amp; copy token</button>
+          <textarea id="token-out" rows="3" readonly placeholder="Nostr …"></textarea>
+        </details>
+
+        <details open>
+          <summary>Test sign-in against a server</summary>
+          <label>Server URL<input id="server-url" type="url" placeholder="https://sockets.local" /></label>
+          <label>Protected path<input id="test-path" type="text" value="/auth/me" /></label>
+          <button id="btn-test" class="primary">Sign in</button>
+        </details>
+      </section>
+
+      <pre id="status" class="status" aria-live="polite"></pre>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+[package]
+name = "sin-cli"
+version = "0.1.0"
+description = "Command-line admin for SIn: generate identities and manage the allowlist."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "sin"
+path = "src/main.rs"
+
+[dependencies]
+sin-core = { path = "../sin-core" }
+clap = { version = "4", features = ["derive"] }
+rand = { workspace = true }
+hex = { workspace = true }
