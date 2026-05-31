@@ -47,10 +47,11 @@ challenge being used twice.
 
 ## Crates
 
-| crate          | what it is                                                              |
-| -------------- | ----------------------------------------------------------------------- |
-| `sin-core`     | keypairs + `npub`/`nsec`, nostr events, challenges, allowlist, verifier |
-| `sin-cli`      | `sin` — generate identities and manage the allowlist                    |
+| crate / dir | what it is                                                              |
+| ----------- | ----------------------------------------------------------------------- |
+| `sin-core`  | keypairs + `npub`/`nsec`, nostr events, challenges, allowlist, verifier |
+| `sin-cli`   | `sin` — identities, allowlist, plus `challenge` / `verify`              |
+| `web/`      | the **signer PWA**: passkey-gated key, NIP-98 signing, installable/offline |
 
 ## CLI
 
@@ -65,7 +66,31 @@ cargo run -p sin-cli -- secret
 cargo run -p sin-cli -- allow npub1... --label "petter's laptop" --role admin
 cargo run -p sin-cli -- list
 cargo run -p sin-cli -- revoke npub1...
+
+# Mint and verify tokens (used by the PWA interop test).
+cargo run -p sin-cli -- challenge --secret <hex>
+echo "Nostr eyJ..." | cargo run -p sin-cli -- verify --secret <hex> --url <url> --method POST
 ```
+
+## The signer PWA (`web/`)
+
+An installable Progressive Web App that *is* the signer. The secret key is
+generated on-device, encrypted with AES-256-GCM, and unlocked only by a passkey
+via the **WebAuthn PRF** extension — passwordless, theft-resistant, and the key
+never leaves the device. It signs NIP-98 tokens and can drive a SIn-protected
+server directly.
+
+```sh
+cd web
+npm install
+npm run build      # bundle into web/dist/ (offline-capable app shell)
+npm run dev        # esbuild dev server with live rebuilds
+npm run interop    # sign tokens in JS, verify them with the Rust `sin` CLI
+```
+
+> Passkey unlock requires a real browser with WebAuthn PRF support (current
+> Chrome, Safari 18+). Serve over HTTPS (or `localhost`) and over a stable
+> origin, since passkeys and IndexedDB are bound to the origin.
 
 ## Using it from a server
 
@@ -88,18 +113,18 @@ println!("authenticated {} as {}", signin.label, signin.role);
 
 - [x] `sin-core`: keys, NIP-19, NIP-98 verification, stateless challenges, replay
       cache, allowlist
-- [x] `sin-cli`: identity + allowlist management
-- [ ] `sin-middleware`: drop-in `axum` extractor (`require_signin()`)
-- [ ] browser module: keypair in IndexedDB, **passkey-gated via WebAuthn PRF**,
-      NIP-98 signing with `nostr-tools`
+- [x] `sin-cli`: identity + allowlist management, plus `challenge` / `verify`
+- [x] **signer PWA** (`web/`): on-device keypair, passkey-gated via WebAuthn PRF,
+      NIP-98 signing, installable/offline, JS↔Rust interop-tested
+- [ ] `sin-middleware`: drop-in `axum` extractor (`require_signin()`) + a demo
+      server exposing `/auth/challenge` and a protected route
 - [ ] `examples/rf-socket`: wired into rf-socket-controller
 - [ ] session issuance (signed cookie / JWT) after a successful sign-in
 
 ## Security notes
 
-- The in-browser key is intended to be encrypted at rest and unlocked with a
-  passkey (WebAuthn PRF) — passwordless but theft-resistant. (Browser module is
-  on the roadmap above.)
+- The in-browser key is encrypted at rest (AES-256-GCM) and unlocked with a
+  passkey (WebAuthn PRF) — passwordless but theft-resistant.
 - The replay cache is process-local; for multi-instance deployments back it with
   a shared store.
 - Losing a device means losing that identity — by design. Re-enrolling is one
