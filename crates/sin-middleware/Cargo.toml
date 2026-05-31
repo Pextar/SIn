@@ -1,0 +1,13 @@
+[package]
+name = "sin-middleware"
+version = "0.1.0"
+description = "axum integration for SIn: a challenge endpoint and an Authenticated extractor."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+sin-core = { path = "../sin-core" }
+axum.workspace = true
+serde_json.workspace = true

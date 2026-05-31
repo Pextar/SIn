@@ -51,6 +51,8 @@ challenge being used twice.
 | ----------- | ----------------------------------------------------------------------- |
 | `sin-core`  | keypairs + `npub`/`nsec`, nostr events, challenges, allowlist, verifier |
 | `sin-cli`   | `sin` — identities, allowlist, plus `challenge` / `verify`              |
+| `sin-middleware` | axum `Authenticated` extractor + `/auth/challenge` handler        |
+| `sin-demo`  | runnable server: serves the PWA *and* SIn-protected endpoints           |
 | `web/`      | the **signer PWA**: passkey-gated key, NIP-98 signing, installable/offline |
 
 ## CLI
@@ -92,6 +94,29 @@ npm run interop    # sign tokens in JS, verify them with the Rust `sin` CLI
 > Chrome, Safari 18+). Serve over HTTPS (or `localhost`) and over a stable
 > origin, since passkeys and IndexedDB are bound to the origin.
 
+## Run the whole thing
+
+The `sin-demo` server hosts the PWA and the protected API on one origin, so you
+can do the full passkey → sign → authenticate loop in a browser:
+
+```sh
+# 1. Build the PWA the server will serve.
+cd web && npm install && npm run build && cd ..
+
+# 2. Start the demo (serves web/dist + /auth/* + /api/*).
+SIN_BASE=http://localhost:8080 cargo run -p sin-demo
+
+# 3. Open http://localhost:8080, create an identity (passkey), copy the npub.
+# 4. Register it, then restart the server so it reloads the allowlist:
+cargo run -p sin-cli -- allow npub1... --label "my phone" --role admin
+
+# 5. Back in the PWA, "Sign in" against http://localhost:8080 — you're in.
+```
+
+`SIN_BASE` must equal the origin the browser uses, since NIP-98 tokens bind to
+the absolute request URL. Other env vars: `SIN_SECRET`, `SIN_ALLOWLIST`,
+`SIN_WEB_DIR`, `SIN_ADDR`.
+
 ## Using it from a server
 
 ```rust
@@ -116,8 +141,8 @@ println!("authenticated {} as {}", signin.label, signin.role);
 - [x] `sin-cli`: identity + allowlist management, plus `challenge` / `verify`
 - [x] **signer PWA** (`web/`): on-device keypair, passkey-gated via WebAuthn PRF,
       NIP-98 signing, installable/offline, JS↔Rust interop-tested
-- [ ] `sin-middleware`: drop-in `axum` extractor (`require_signin()`) + a demo
-      server exposing `/auth/challenge` and a protected route
+- [x] `sin-middleware`: axum `Authenticated` extractor + `/auth/challenge`
+- [x] `sin-demo`: runnable server hosting the PWA + protected routes (live-tested)
 - [ ] `examples/rf-socket`: wired into rf-socket-controller
 - [ ] session issuance (signed cookie / JWT) after a successful sign-in
 

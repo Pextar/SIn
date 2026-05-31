@@ -1,0 +1,22 @@
+[package]
+name = "sin-demo"
+version = "0.1.0"
+description = "A runnable demo server: serves the SIn signer PWA and SIn-protected endpoints."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "sin-demo"
+path = "src/main.rs"
+
+[dependencies]
+sin-core = { path = "../sin-core" }
+sin-middleware = { path = "../sin-middleware" }
+axum.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+rand.workspace = true
