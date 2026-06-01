@@ -1,14 +1,14 @@
 [package]
-name = "sin-demo"
+name = "sin-server"
 version = "0.1.0"
-description = "A runnable demo server: serves the SIn signer PWA and SIn-protected endpoints."
+description = "The SIn authentication server — serves the signer PWA and auth endpoints."
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "sin-demo"
+name = "sin-server"
 path = "src/main.rs"
 
 [dependencies]

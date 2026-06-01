@@ -5,9 +5,9 @@ RELEASE := target/$(TARGET)/release
 .PHONY: build-pi
 build-pi:
 	@if command -v cross >/dev/null 2>&1; then \
-		cross build --release --target $(TARGET) -p sin-demo -p sin-cli; \
+		cross build --release --target $(TARGET) -p sin-server -p sin-cli; \
 	else \
-		cargo build --release --target $(TARGET) -p sin-demo -p sin-cli; \
+		cargo build --release --target $(TARGET) -p sin-server -p sin-cli; \
 	fi
 
 # Build the web PWA
@@ -31,12 +31,12 @@ setup-pi:
 # Build a native release (for local testing)
 .PHONY: build
 build:
-	cargo build --release -p sin-demo -p sin-cli
+	cargo build --release -p sin-server -p sin-cli
 
 # Run the auth server locally for development
 .PHONY: dev
 dev:
-	SIN_BASE=http://localhost:8080 cargo run -p sin-demo
+	SIN_BASE=http://localhost:8080 cargo run -p sin-server
 
 .PHONY: test
 test:

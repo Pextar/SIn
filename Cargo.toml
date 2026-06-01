@@ -4,7 +4,7 @@ members = [
     "crates/sin-core",
     "crates/sin-cli",
     "crates/sin-middleware",
-    "crates/sin-demo",
+    "crates/sin-server",
     "examples/rf-socket",
 ]
 

@@ -65,7 +65,7 @@ rotating the secret invalidates every session. The token also works as an
 | `sin-core`  | keypairs + `npub`/`nsec`, nostr events, challenges, **sessions**, allowlist, verifier |
 | `sin-cli`   | `sin` — identities, allowlist, plus `challenge` / `verify`              |
 | `sin-middleware` | axum extractors (`Authenticated`, `Session`) + `challenge` / `login` handlers |
-| `sin-demo`  | runnable server: serves the PWA *and* SIn-protected endpoints           |
+| `sin-server` | the SIn authentication server: serves the PWA and auth endpoints       |
 | `examples/rf-socket` | a socket controller with session auth + **role-based access** (toggle vs. admin) |
 | `web/`      | the **signer PWA**: passkey-gated key, NIP-98 signing, installable/offline |
 
@@ -110,15 +110,15 @@ npm run interop    # sign tokens in JS, verify them with the Rust `sin` CLI
 
 ## Run the whole thing
 
-The `sin-demo` server hosts the PWA and the protected API on one origin, so you
+The `sin-server` hosts the PWA and auth endpoints on one origin, so you
 can do the full passkey → sign → authenticate loop in a browser:
 
 ```sh
 # 1. Build the PWA the server will serve.
 cd web && npm install && npm run build && cd ..
 
-# 2. Start the demo (serves web/dist + /auth/* + /api/*).
-SIN_BASE=http://localhost:8080 cargo run -p sin-demo
+# 2. Start the server (serves web/dist + /auth/* + /api/*).
+SIN_BASE=http://localhost:8080 cargo run -p sin-server
 
 # 3. Open http://localhost:8080, create an identity (passkey), copy the npub.
 # 4. Register it, then restart the server so it reloads the allowlist:
@@ -128,7 +128,7 @@ cargo run -p sin-cli -- allow npub1... --label "my phone" --role admin
 ```
 
 `SIN_BASE` must equal the origin the browser uses, since NIP-98 tokens bind to
-the absolute request URL. The demo wires up both auth styles: `/auth/whoami` is
+the absolute request URL. The server wires up both auth styles: `/auth/whoami` is
 per-request NIP-98, while `/auth/login` mints a session that authorizes
 `/auth/me` and `/api/socket/...`. Other env vars: `SIN_SECRET`,
 `SIN_SESSION_SECRET`, `SIN_SESSION_TTL`, `SIN_ALLOWLIST`, `SIN_WEB_DIR`,
@@ -216,7 +216,7 @@ println!("authenticated {} as {}", session.label, session.role);
       + `login` handlers
 - [x] **session issuance**: stateless HMAC session token (cookie or Bearer) after
       a successful sign-in — sign once, then act (live-tested)
-- [x] `sin-demo`: runnable server hosting the PWA + protected routes (live-tested)
+- [x] `sin-server`: authentication server hosting the PWA + auth routes (live-tested)
 - [x] `examples/rf-socket`: realistic controller — session auth + role-based
       authorization (users toggle, admins reconfigure), live-tested
 
