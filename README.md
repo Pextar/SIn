@@ -4,8 +4,8 @@ No usernames. No passwords. **Your identity is a public key, and you sign in by
 signing a challenge.** The server stores only public keys, so there is nothing
 to phish, reset, or leak.
 
-Built for internal use (e.g. fronting
-[`rf-socket-controller`](https://github.com/Pextar)), on the same secp256k1
+Built for internal use (e.g. fronting a
+[home hub / RF controller](https://github.com/Pextar)), on the same secp256k1
 crypto that nostr and bitcoin use.
 
 ## Why
@@ -66,7 +66,7 @@ rotating the secret invalidates every session. The token also works as an
 | `sin-cli`   | `sin` — identities, allowlist, plus `challenge` / `verify`              |
 | `sin-middleware` | axum extractors (`Authenticated`, `Session`) + `challenge` / `login` handlers |
 | `sin-demo`  | runnable server: serves the PWA *and* SIn-protected endpoints           |
-| `examples/rf-socket` | a socket controller with session auth + **role-based access** (toggle vs. admin) |
+| `examples/home-hub` | a home hub (switches, dimmers, sensors, scenes) with session auth + **role-based access** (actuate vs. admin) |
 | `web/`      | the **signer PWA**: passkey-gated key, NIP-98 signing, installable/offline |
 
 ## CLI
@@ -134,29 +134,38 @@ per-request NIP-98, while `/auth/login` mints a session that authorizes
 `SIN_SESSION_SECRET`, `SIN_SESSION_TTL`, `SIN_ALLOWLIST`, `SIN_WEB_DIR`,
 `SIN_ADDR`.
 
-## Example: an RF socket controller with roles
+## Example: a home hub with roles
 
-`examples/rf-socket` is a fuller, realistic app — the shape an actual
-`rf-socket-controller` would take. It adds the one thing the demo doesn't show:
-**role-based authorization** carried in the signed session.
+`examples/home-hub` is a fuller, realistic app — the shape an actual home
+controller takes once a single RF-socket grows into a hub. It adds the two
+things the demo doesn't show: **a real device model** and **role-based
+authorization** carried in the signed session.
 
-- Combined app state (a socket bank + `SinState`) wired through `FromRef`, so
-  the SIn extractors and your handlers share one router state.
-- Any registered key may **list and toggle** sockets (`POST /api/sockets/{id}/{on,off,toggle}`).
-- Only an `admin` may **add or remove** them (`POST`/`DELETE /api/sockets`). The
-  role rides in the session, so the check is a string compare — no extra lookup.
-- Swap `actuate_radio` for your 433 MHz transmitter and it's a real controller.
+- Combined app state (the hub + `SinState`) wired through `FromRef`, so the SIn
+  extractors and your handlers share one router state.
+- A `Device` has several **kinds**: a `switch` (an RF socket, `on`/`off`/`toggle`),
+  a `dimmer` (a light with a `0..=100` level), and a read-only `sensor`
+  (temperature / humidity / contact). Adding a gadget is a data change, not a new
+  endpoint. **Scenes** layer on top — a named bundle of commands applied together.
+- Any registered key may **read** devices, **command** them
+  (`POST /api/devices/{id}` with a JSON command), and **apply** scenes
+  (`POST /api/scenes/{id}/apply`).
+- Only an `admin` may **add or remove** devices and scenes
+  (`POST`/`DELETE /api/devices`, `/api/scenes`). The role rides in the session,
+  so the check is a string compare — no extra lookup.
+- Swap `actuate_radio` for your 433 MHz transmitter and it's a real hub.
 
 ```sh
-SIN_BASE=http://localhost:8090 SIN_ADDR=127.0.0.1:8090 cargo run -p rf-socket
+SIN_BASE=http://localhost:8090 SIN_ADDR=127.0.0.1:8090 cargo run -p home-hub
 # register keys with roles:
 cargo run -p sin-cli -- allow npub1admin... --role admin
 cargo run -p sin-cli -- allow npub1guest... --role user
 ```
 
-The role split is exercised end-to-end in `examples/rf-socket/test/live.mjs`
-(both roles sign in via passkey-style keys; the user is `403`'d on add/remove
-while the admin succeeds).
+The device kinds, scenes, and role split are exercised end-to-end in
+`examples/home-hub/test/live.mjs` (both roles sign in via passkey-style keys; the
+user can actuate and apply scenes but is `403`'d on add/remove while the admin
+succeeds).
 
 ## Using it from a server
 
@@ -217,8 +226,9 @@ println!("authenticated {} as {}", session.label, session.role);
 - [x] **session issuance**: stateless HMAC session token (cookie or Bearer) after
       a successful sign-in — sign once, then act (live-tested)
 - [x] `sin-demo`: runnable server hosting the PWA + protected routes (live-tested)
-- [x] `examples/rf-socket`: realistic controller — session auth + role-based
-      authorization (users toggle, admins reconfigure), live-tested
+- [x] `examples/home-hub`: realistic hub — switches, dimmers, read-only sensors,
+      and scenes, with session auth + role-based authorization (users actuate and
+      apply scenes, admins reconfigure), live-tested
 
 ## Security notes
 

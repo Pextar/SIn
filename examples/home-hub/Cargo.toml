@@ -1,7 +1,7 @@
 [package]
-name = "rf-socket"
+name = "home-hub"
 version = "0.1.0"
-description = "Example: an RF socket controller fronted by SIn session auth with role checks."
+description = "Example: a passwordless home hub (switches, dimmers, sensors, scenes) fronted by SIn session auth with role checks."
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -9,7 +9,7 @@ rust-version.workspace = true
 publish = false
 
 [[bin]]
-name = "rf-socket"
+name = "home-hub"
 path = "src/main.rs"
 
 [dependencies]

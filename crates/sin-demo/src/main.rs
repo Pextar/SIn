@@ -2,7 +2,7 @@
 //!
 //! It serves the signer PWA (`web/dist`) *and* SIn-protected API endpoints, so
 //! you can install the PWA, unlock with a passkey, and sign in — no CORS, stable
-//! passkey origin. This is the shape `rf-socket-controller` would take.
+//! passkey origin. The `home-hub` example shows the shape a real app would take.
 //!
 //! Two auth styles are demonstrated:
 //!   * `/auth/whoami`            — per-request NIP-98 (sign every call).
