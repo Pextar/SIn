@@ -1,0 +1,17 @@
+[Unit]
+Description=SIn RF Socket Controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sin
+Group=sin
+EnvironmentFile=/etc/sin/config.env
+ExecStart=/usr/local/bin/rf-socket
+Restart=on-failure
+RestartSec=5s
+WorkingDirectory=/opt/sin
+
+[Install]
+WantedBy=multi-user.target
