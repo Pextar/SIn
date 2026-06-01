@@ -1,5 +1,5 @@
 [Unit]
-Description=SIn RF Socket Controller
+Description=SIn Authentication Server
 After=network-online.target
 Wants=network-online.target
 
@@ -8,7 +8,7 @@ Type=simple
 User=sin
 Group=sin
 EnvironmentFile=/etc/sin/config.env
-ExecStart=/usr/local/bin/rf-socket
+ExecStart=/usr/local/bin/sin-demo
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory=/opt/sin
